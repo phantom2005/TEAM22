@@ -1,70 +1,199 @@
-# Getting Started with Create React App
+# AI Incident RCA Assistant
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+An AI-powered Root Cause Analysis engine for IT incidents. Paste an error log or incident description and get an instant RCA backed by RAG retrieval over historical tickets and LLM generation via Groq.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
+## Tech Stack
 
-### `npm start`
+| Layer | Technology |
+|---|---|
+| Frontend | React 19, Lucide Icons |
+| Backend | FastAPI, SQLAlchemy (async), SQLite |
+| RAG | FAISS, sentence-transformers (`all-MiniLM-L6-v2`) |
+| LLM | Groq (`llama-3.3-70b-versatile`) |
+| Tests | pytest, pytest-asyncio, httpx |
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+---
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Project Structure
 
-### `npm test`
+```
+TEAM22_fork/
+├── src/                        # React frontend
+│   ├── api.js                  # Centralised API client
+│   ├── App.js
+│   └── components/
+│       ├── Dashboard.jsx       # Main app — RCA tab + Chatbot tab
+│       ├── FeedbackAndMetrics.jsx
+│       ├── Login.jsx
+│       └── Signup.jsx
+└── backend/
+    ├── app/
+    │   ├── api/                # Route handlers (thin)
+    │   │   ├── analysis.py     # POST /analyze, GET /analysis/{id}
+    │   │   ├── datasets.py     # POST /datasets/upload, GET /datasets
+    │   │   ├── incidents.py    # GET /incidents, GET /incidents/{id}
+    │   │   ├── feedback.py     # POST /feedback
+    │   │   └── system.py       # GET /analytics, GET /health
+    │   ├── services/           # Business logic
+    │   │   ├── retrieval_service.py   # FAISS index + similarity search
+    │   │   ├── rca_service.py         # Groq LLM + prompt builder
+    │   │   ├── dataset_service.py     # CSV/JSON ingestion
+    │   │   └── analytics_service.py  # DB aggregations
+    │   ├── models/             # SQLAlchemy ORM models
+    │   ├── schemas/            # Pydantic request/response schemas
+    │   ├── core/               # Config, database, logging
+    │   └── main.py             # FastAPI app entry point
+    ├── tests/
+    │   ├── conftest.py
+    │   └── test_api.py         # 9 tests — all endpoints
+    ├── requirements.txt
+    └── .env.example
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+---
 
-### `npm run build`
+## Request Flow
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```
+POST /api/analyze
+       │
+       ▼
+  API layer (analysis.py)
+       │
+       ├──▶ retrieval_service  →  FAISS cosine similarity search
+       │                               │
+       │                         top-K similar incidents
+       │
+       ├──▶ rca_service        →  Groq LLM (llama-3.3-70b-versatile)
+       │                               │
+       │                         structured JSON: summary, root_cause,
+       │                         resolution, confidence, evidence
+       │
+       └──▶ persist Analysis to DB  →  return AnalyzeResponse
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+---
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## Setup
 
-### `npm run eject`
+### 1. Backend
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```bash
+cd backend
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# Create and activate virtual environment
+python3 -m venv venv && source venv/bin/activate
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# Install dependencies
+pip install -r requirements.txt
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+# Configure environment
+cp .env.example .env
+# Edit .env — set your GROQ_API_KEY
+```
 
-## Learn More
+**.env** (minimum required):
+```env
+GROQ_API_KEY=gsk_your-key-here
+DATABASE_URL=sqlite+aiosqlite:///./rca.db
+CORS_ORIGINS=http://localhost:3000
+```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+Get a free Groq API key at [console.groq.com](https://console.groq.com).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+```bash
+# Start the backend
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
 
-### Code Splitting
+API docs available at: `http://localhost:8000/docs`
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 2. Frontend
 
-### Analyzing the Bundle Size
+```bash
+# From project root
+npm install
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+Frontend runs at: `http://localhost:3000`
 
-### Making a Progressive Web App
+---
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+## API Reference
 
-### Advanced Configuration
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/datasets/upload` | Upload CSV/JSON of historical incidents |
+| `GET` | `/api/datasets` | List all uploaded datasets |
+| `GET` | `/api/incidents` | Paginated list of historical incidents |
+| `GET` | `/api/incidents/{id}` | Get a single incident |
+| `POST` | `/api/analyze` | **Core endpoint** — run RCA on an incident |
+| `GET` | `/api/analysis/{id}` | Retrieve a past analysis |
+| `POST` | `/api/feedback` | Submit accuracy feedback |
+| `GET` | `/api/analytics` | Live metrics and stats |
+| `GET` | `/api/health` | Health + readiness check |
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+### POST /api/analyze
 
-### Deployment
+Request:
+```json
+{
+  "incident_description": "Production payment API returning HTTP 502 errors during peak hours"
+}
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+Response:
+```json
+{
+  "id": "uuid",
+  "summary": "...",
+  "root_cause": "...",
+  "resolution": "...",
+  "confidence": 0.91,
+  "evidence": ["..."],
+  "similar_incidents": [
+    {
+      "id": "uuid",
+      "ticket_id": "INC-101",
+      "title": "...",
+      "score": 0.88,
+      "root_cause": "...",
+      "resolution": "..."
+    }
+  ],
+  "status": "completed",
+  "created_at": "2024-01-01T00:00:00Z"
+}
+```
 
-### `npm run build` fails to minify
+### Dataset CSV Format
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Upload historical incidents via `POST /api/datasets/upload`. Required columns:
+
+```
+ticket_id, title, description, root_cause, resolution, category, severity
+```
+
+Column names are flexible — `root_cause`, `rootcause`, `cause` are all accepted.
+
+---
+
+## Running Tests
+
+```bash
+cd backend
+pytest -v
+```
+
+Expected output: **9 passed** covering health, analytics, analyze, feedback, and full end-to-end flow.
+
+---
+
+## Notes
+
+- **No Groq key?** The app still works — it falls back to a deterministic mock RCA using the top retrieved incident.
+- **Empty index?** Upload a dataset CSV first to populate the FAISS index. Without it, RAG retrieval returns no results and the LLM has no historical context.
+- **Database** defaults to SQLite for development. Swap `DATABASE_URL` to a PostgreSQL connection string for production.
