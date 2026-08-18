@@ -11,7 +11,7 @@ An AI-powered Root Cause Analysis engine for IT incidents. Paste an error log or
 | Frontend | React 19, Lucide Icons |
 | Backend | FastAPI, SQLAlchemy (async), SQLite / PostgreSQL |
 | RAG | FAISS, sentence-transformers (`all-MiniLM-L6-v2`) |
-| LLM | Groq (`llama-3.3-70b-versatile`) |
+| LLM | Groq (`llama-3.1-8b-instant`) |
 | Tests | pytest, pytest-asyncio, httpx |
 | Containerisation | Docker, Docker Compose, nginx |
 
@@ -72,7 +72,7 @@ POST /api/analyze
        │                               │
        │                         top-K similar incidents
        │
-       ├──▶ rca_service        →  Groq LLM (llama-3.3-70b-versatile)
+       ├──▶ rca_service        →  Groq LLM (llama-3.1-8b-instant)
        │                               │
        │                         structured JSON: summary, root_cause,
        │                         resolution, confidence, evidence
@@ -184,6 +184,7 @@ ticket_id, title, description, root_cause, resolution, category, severity
 ```
 
 Column names are flexible — `root_cause`, `rootcause`, `cause` are all accepted.
+`title` is optional — if missing, it is auto-generated from the first 80 characters of `description`.
 
 ---
 
@@ -253,4 +254,6 @@ Expected output: **9 passed** covering health, analytics, analyze, feedback, and
 
 - **No Groq key?** The app still works — it falls back to a deterministic mock RCA using the top retrieved incident.
 - **Empty index?** Upload a dataset CSV first to populate the FAISS index. Without it, RAG retrieval returns no results and the LLM has no historical context.
+- **FAISS persistence** — the index is saved to disk on the `uploads_data` Docker volume and reloaded on restart, so re-embedding is only triggered when new data is uploaded.
 - **Database** defaults to SQLite for development. Swap `DATABASE_URL` to a PostgreSQL connection string for production.
+- **Do not use `docker compose down -v`** unless you want to wipe the database and uploads volume. Use `docker compose down` to just stop the containers.

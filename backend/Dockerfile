@@ -15,8 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY app/ ./app/
 
-# Non-root user
-RUN useradd -m appuser && chown -R appuser /app
+# Non-root user — create uploads dir before switching user
+RUN useradd -m appuser \
+    && mkdir -p /app/uploads \
+    && chown -R appuser:appuser /app
 USER appuser
 
 # Pre-download the embedding model so first request isn't slow

@@ -30,8 +30,8 @@ services:
     environment:
       APP_ENV: production
       DATABASE_URL: postgresql+asyncpg://rca_user:rca_pass@db:5432/rca_db
-      GROQ_API_KEY: ${GROQ_API_KEY}
-      GROQ_MODEL: ${GROQ_MODEL:-llama-3.3-70b-versatile}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
       GROQ_MAX_TOKENS: ${GROQ_MAX_TOKENS:-1024}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
       TOP_K_RESULTS: ${TOP_K_RESULTS:-5}

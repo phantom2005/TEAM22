@@ -13,7 +13,6 @@ per process and reused across requests.
 from __future__ import annotations
 
 import asyncio
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -28,15 +27,17 @@ from app.models import Incident
 logger = get_logger(__name__)
 settings = get_settings()
 
-# Lazy imports — heavy libraries loaded only when first needed
 _faiss = None
 _SentenceTransformer = None
+
+INDEX_PATH = Path("uploads/faiss.index")
+IDS_PATH = Path("uploads/faiss.ids")
 
 
 def _import_faiss():
     global _faiss
     if _faiss is None:
-        import faiss as faiss_lib  # noqa: PLC0415
+        import faiss as faiss_lib
         _faiss = faiss_lib
     return _faiss
 
@@ -44,7 +45,7 @@ def _import_faiss():
 def _import_st():
     global _SentenceTransformer
     if _SentenceTransformer is None:
-        from sentence_transformers import SentenceTransformer  # noqa: PLC0415
+        from sentence_transformers import SentenceTransformer
         _SentenceTransformer = SentenceTransformer
     return _SentenceTransformer
 
@@ -80,6 +81,7 @@ def _embed(texts: list[str], model) -> np.ndarray:
 async def build_index(db: AsyncSession) -> int:
     """
     (Re)build the FAISS index from all Incident rows in the database.
+    Persists index to disk so restarts don't require a full rebuild.
     Returns the number of vectors indexed.
     """
     async with _index_lock:
@@ -95,24 +97,38 @@ async def build_index(db: AsyncSession) -> int:
             _rag_index.incident_ids = []
             return 0
 
-        texts = [f"{inc.title}. {inc.description}" for inc in incidents]
-
         if _rag_index.model is None:
             logger.info("Loading embedding model: %s", settings.embedding_model)
             _rag_index.model = ST(settings.embedding_model)
 
+        # Load from disk if incident count matches — skip re-embedding
+        if INDEX_PATH.exists() and IDS_PATH.exists():
+            saved_ids = IDS_PATH.read_text().splitlines()
+            if len(saved_ids) == len(incidents):
+                logger.info("Loading FAISS index from disk (%d vectors).", len(saved_ids))
+                _rag_index.index = faiss.read_index(str(INDEX_PATH))
+                _rag_index.incident_ids = saved_ids
+                _rag_index.dimension = _rag_index.index.d
+                return len(saved_ids)
+
+        texts = [f"{inc.title}. {inc.description}" for inc in incidents]
         logger.info("Embedding %d incidents…", len(texts))
         embeddings = _embed(texts, _rag_index.model)
 
         dim = embeddings.shape[1]
-        index = faiss.IndexFlatIP(dim)   # Inner-product on normalised vecs == cosine
+        index = faiss.IndexFlatIP(dim)
         index.add(embeddings)
+
+        # Persist to disk
+        INDEX_PATH.parent.mkdir(exist_ok=True)
+        faiss.write_index(index, str(INDEX_PATH))
+        IDS_PATH.write_text("\n".join(inc.id for inc in incidents))
 
         _rag_index.index = index
         _rag_index.incident_ids = [inc.id for inc in incidents]
         _rag_index.dimension = dim
 
-        logger.info("FAISS index built with %d vectors (dim=%d).", len(incidents), dim)
+        logger.info("FAISS index built and saved with %d vectors (dim=%d).", len(incidents), dim)
         return len(incidents)
 
 
