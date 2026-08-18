@@ -181,6 +181,57 @@ Column names are flexible — `root_cause`, `rootcause`, `cause` are all accepte
 
 ---
 
+## Docker (PostgreSQL)
+
+### Quick start
+
+```bash
+# 1. Create your env file with your Groq key
+cp .env.docker.example .env.docker
+# Edit .env.docker — set GROQ_API_KEY=gsk_your-key-here
+
+# 2. Build and start all services
+docker compose --env-file .env.docker up --build
+```
+
+That starts:
+- `db` — PostgreSQL 16 on port `5432`
+- `backend` — FastAPI on port `8000` (waits for DB to be healthy)
+- `frontend` — React + nginx on port `80` (waits for backend to be healthy)
+
+Open `http://localhost` — the app is live.
+Open `http://localhost:8000/docs` — Swagger UI.
+
+### Useful commands
+
+```bash
+# Run in background
+docker compose --env-file .env.docker up -d
+
+# View logs
+docker compose logs -f backend
+
+# Stop everything
+docker compose down
+
+# Stop and wipe the database volume
+docker compose down -v
+
+# Rebuild after code changes
+docker compose --env-file .env.docker up --build
+```
+
+### Services
+
+| Service | URL | Notes |
+|---|---|---|
+| Frontend | `http://localhost` | React app via nginx |
+| Backend | `http://localhost:8000` | FastAPI direct access |
+| Swagger UI | `http://localhost:8000/docs` | API docs |
+| PostgreSQL | `localhost:5432` | DB: `rca_db`, user: `rca_user` |
+
+---
+
 ## Running Tests
 
 ```bash
