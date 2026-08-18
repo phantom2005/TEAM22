@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # LLM
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "llama-3.1-8b-instant"
     groq_max_tokens: int = 1024
 
     # RAG

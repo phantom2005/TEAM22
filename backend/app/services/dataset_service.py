@@ -84,8 +84,12 @@ async def ingest_dataset(
         df = _load_dataframe(file_content, filename)
         df = _normalise_columns(df)
 
-        if "title" not in df.columns or "description" not in df.columns:
-            raise ValueError("Dataset must contain 'title' and 'description' columns.")
+        if "description" not in df.columns:
+            raise ValueError("Dataset must contain a 'description' column.")
+
+        # If no title column, generate one from description
+        if "title" not in df.columns:
+            df["title"] = df["description"].str.slice(0, 80) + "..."
 
         df = df.where(pd.notna(df), None)  # replace NaN with None
 
