@@ -9,10 +9,11 @@ An AI-powered Root Cause Analysis engine for IT incidents. Paste an error log or
 | Layer | Technology |
 |---|---|
 | Frontend | React 19, Lucide Icons |
-| Backend | FastAPI, SQLAlchemy (async), SQLite |
+| Backend | FastAPI, SQLAlchemy (async), SQLite / PostgreSQL |
 | RAG | FAISS, sentence-transformers (`all-MiniLM-L6-v2`) |
 | LLM | Groq (`llama-3.3-70b-versatile`) |
 | Tests | pytest, pytest-asyncio, httpx |
+| Containerisation | Docker, Docker Compose, nginx |
 
 ---
 
@@ -28,7 +29,12 @@ TEAM22_fork/
 │       ├── FeedbackAndMetrics.jsx
 │       ├── Login.jsx
 │       └── Signup.jsx
+├── Dockerfile                  # Frontend multi-stage build (Node → nginx)
+├── nginx.conf                  # nginx SPA config + /api proxy
+├── docker-compose.yml          # PostgreSQL + backend + frontend
+├── .env.docker.example         # Docker env template
 └── backend/
+    ├── Dockerfile              # Backend container (Python 3.12-slim)
     ├── app/
     │   ├── api/                # Route handlers (thin)
     │   │   ├── analysis.py     # POST /analyze, GET /analysis/{id}
