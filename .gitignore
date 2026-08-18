@@ -14,6 +14,8 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
+# Docker secrets (has real GROQ_API_KEY)
+.env.docker
 
 # ── Python ────────────────────────────────────────────────────────────────────
 backend/venv/
