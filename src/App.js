@@ -1,25 +1,33 @@
-import logo from './logo.svg';
+import React, { useState } from 'react';
 import './App.css';
+import Login from './components/Login';
+import Signup from './components/Signup';
+import Dashboard from './components/Dashboard';
 
-function App() {
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [authView, setAuthView] = useState('login'); // 'login' | 'signup'
+
+  // If user is not logged in, switch between Login and Signup screens
+  if (!user) {
+    return authView === 'login' ? (
+      <Login 
+        onLogin={(userData) => setUser(userData)} 
+        switchToSignup={() => setAuthView('signup')} 
+      />
+    ) : (
+      <Signup 
+        onSignup={(userData) => setUser(userData)} 
+        switchToLogin={() => setAuthView('login')} 
+      />
+    );
+  }
+
+  // Render Dashboard when user is logged in
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Dashboard 
+      user={user} 
+      onLogout={() => setUser(null)} 
+    />
   );
 }
-
-export default App;
