@@ -1,5 +1,8 @@
 # AI Incident RCA Assistant
 
+![CI](https://github.com/VinVorteX/TEAM22_fork/actions/workflows/ci.yml/badge.svg)
+![Docker Build](https://github.com/VinVorteX/TEAM22_fork/actions/workflows/docker-build.yml/badge.svg)
+
 An AI-powered Root Cause Analysis engine for IT incidents. Paste an error log or incident description and get an instant RCA backed by RAG retrieval over historical tickets and LLM generation via Groq.
 
 ---
@@ -33,6 +36,9 @@ TEAM22_fork/
 ├── nginx.conf                  # nginx SPA config + /api proxy
 ├── docker-compose.yml          # PostgreSQL + backend + frontend
 ├── .env.docker.example         # Docker env template
+├── .github/workflows/
+│   ├── ci.yml                  # Run pytest on push/PR
+│   └── docker-build.yml        # Verify Docker build on push/PR
 └── backend/
     ├── Dockerfile              # Backend container (Python 3.12-slim)
     ├── app/
