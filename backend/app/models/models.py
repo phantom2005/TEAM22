@@ -67,6 +67,7 @@ class Analysis(Base):
     confidence: Mapped[float] = mapped_column(Float, default=0.0)
     evidence: Mapped[list] = mapped_column(JSON, default=list)          # list of evidence strings
     similar_incidents: Mapped[list] = mapped_column(JSON, default=list) # list of {id, title, score}
+    severity: Mapped[str | None] = mapped_column(String)                 # P1 | P2 | P3
     status: Mapped[str] = mapped_column(String, default="pending")      # pending | completed | failed
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
