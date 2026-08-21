@@ -1,7 +1,37 @@
-import React, { useState } from 'react';
-import { Search, MessageSquare, Zap, LogOut, Sparkles, AlertTriangle, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, MessageSquare, Zap, LogOut, Sparkles, AlertTriangle, CheckCircle, History, Download } from 'lucide-react';
 import FeedbackAndMetrics from './FeedbackAndMetrics';
 import { api } from '../api';
+
+const SEVERITY_STYLE = {
+  P1: { background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', color: '#f87171' },
+  P2: { background: 'rgba(245,158,11,0.15)', border: '1px solid rgba(245,158,11,0.4)', color: '#fbbf24' },
+  P3: { background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399' },
+};
+
+function exportMarkdown(results) {
+  const md = [
+    `# RCA Report`,
+    `**Severity:** ${results.severity}  |  **Confidence:** ${Math.round(results.confidence * 100)}%`,
+    ``,
+    `## Summary`,
+    results.summary,
+    ``,
+    `## Root Cause`,
+    results.root_cause,
+    ``,
+    `## Resolution`,
+    results.resolution,
+    ``,
+    `## Evidence`,
+    ...(results.evidence || []).map(e => `- ${e}`),
+  ].join('\n');
+  const blob = new Blob([md], { type: 'text/markdown' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rca-${results.id?.slice(0, 8) || 'report'}.md`;
+  a.click();
+}
 
 export default function Dashboard({ user, onLogout }) {
   const [activeTab, setActiveTab] = useState('rca');
@@ -9,6 +39,11 @@ export default function Dashboard({ user, onLogout }) {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
+
+  // History state
+  const [history, setHistory] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
 
   // Chatbot state
   const [chatMessages, setChatMessages] = useState([
@@ -38,6 +73,20 @@ export default function Dashboard({ user, onLogout }) {
       setLoading(false);
     }
   };
+
+  // ── History Tab ───────────────────────────────────────────────────────────
+  const loadHistory = async () => {
+    setHistoryLoading(true);
+    try {
+      const data = await api.getAnalyses();
+      setHistory(data.items || []);
+    } catch {}
+    finally { setHistoryLoading(false); }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'history') loadHistory();
+  }, [activeTab]);
 
   // ── Chatbot Tab ───────────────────────────────────────────────────────────
   const handleSendMessage = async (e) => {
@@ -98,6 +147,9 @@ export default function Dashboard({ user, onLogout }) {
         <div className={`nav-tab ${activeTab === 'chat' ? 'active' : ''}`} onClick={() => setActiveTab('chat')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <MessageSquare size={16} /> Step-by-Step AI Chatbot
         </div>
+        <div className={`nav-tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <History size={16} /> Analysis History
+        </div>
       </div>
 
       {/* TAB 1: RCA */}
@@ -140,9 +192,20 @@ export default function Dashboard({ user, onLogout }) {
 
               {/* Summary */}
               <div style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.2))', border: '1px solid rgba(99,102,241,0.4)', borderRadius: '12px', padding: '20px' }}>
-                <h3 style={{ margin: '0 0 8px 0', color: '#a5b4fc', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Sparkles size={18} /> AI Concise RCA Executive Summary
-                </h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                  <h3 style={{ margin: 0, color: '#a5b4fc', fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sparkles size={18} /> AI Concise RCA Executive Summary
+                  </h3>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ ...SEVERITY_STYLE[results.severity], padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700' }}>
+                      {results.severity}
+                    </span>
+                    <button onClick={() => exportMarkdown(results)}
+                      style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <Download size={13} /> Export MD
+                    </button>
+                  </div>
+                </div>
                 <p style={{ margin: '0 0 8px 0', color: '#f1f5f9', lineHeight: '1.6', fontSize: '14px' }}>{results.summary}</p>
                 <p style={{ margin: 0, color: '#94a3b8', fontSize: '13px' }}>
                   Confidence: <strong style={{ color: '#34d399' }}>{Math.round(results.confidence * 100)}%</strong>
@@ -238,7 +301,53 @@ export default function Dashboard({ user, onLogout }) {
         </div>
       )}
 
-      {/* Feedback & Metrics — passes last analysis id for feedback submission */}
+      {/* TAB 3: History */}
+      {activeTab === 'history' && (
+        <div className="animate-fade-in">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, color: '#e2e8f0' }}>Past Analyses</h3>
+            <button onClick={loadHistory} style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#cbd5e1', padding: '6px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>
+              Refresh
+            </button>
+          </div>
+          {historyLoading && <p style={{ color: '#94a3b8' }}>Loading...</p>}
+          {!historyLoading && history.length === 0 && (
+            <p style={{ color: '#94a3b8' }}>No analyses yet. Run an incident analysis first.</p>
+          )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {history.map(a => (
+              <div key={a.id} className="glass-card" style={{ padding: '16px', cursor: 'pointer' }}
+                onClick={() => setExpandedId(expandedId === a.id ? null : a.id)}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ flex: 1, marginRight: '12px' }}>
+                    <p style={{ margin: 0, fontSize: '14px', color: '#f1f5f9', fontWeight: '600' }}>
+                      {a.incident_description.slice(0, 100)}{a.incident_description.length > 100 ? '…' : ''}
+                    </p>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                      {new Date(a.created_at).toLocaleString()}  ·  Confidence: {Math.round(a.confidence * 100)}%
+                    </p>
+                  </div>
+                  <span style={{ ...SEVERITY_STYLE[a.severity], padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', flexShrink: 0 }}>
+                    {a.severity}
+                  </span>
+                </div>
+                {expandedId === a.id && (
+                  <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: '#cbd5e1' }}>
+                    <div><strong style={{ color: '#818cf8' }}>Root Cause:</strong> {a.root_cause}</div>
+                    <div><strong style={{ color: '#34d399' }}>Resolution:</strong> {a.resolution}</div>
+                    <button onClick={(e) => { e.stopPropagation(); exportMarkdown(a); }}
+                      style={{ alignSelf: 'flex-start', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', color: '#cbd5e1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                      <Download size={13} /> Export MD
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Feedback & Metrics — passes last analysis id for feedback submission */}}
       <FeedbackAndMetrics analysisId={results?.id} />
     </div>
   );

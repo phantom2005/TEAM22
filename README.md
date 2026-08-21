@@ -143,6 +143,7 @@ Frontend runs at: `http://localhost:3000`
 | `GET` | `/api/incidents` | Paginated list of historical incidents |
 | `GET` | `/api/incidents/{id}` | Get a single incident |
 | `POST` | `/api/analyze` | **Core endpoint** — run RCA on an incident |
+| `GET` | `/api/analyses` | List all past analyses (newest first) |
 | `GET` | `/api/analysis/{id}` | Retrieve a past analysis |
 | `POST` | `/api/feedback` | Submit accuracy feedback |
 | `GET` | `/api/analytics` | Live metrics and stats |
@@ -165,6 +166,7 @@ Response:
   "root_cause": "...",
   "resolution": "...",
   "confidence": 0.91,
+  "severity": "P1",
   "evidence": ["..."],
   "similar_incidents": [
     {

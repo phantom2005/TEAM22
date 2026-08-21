@@ -15,6 +15,9 @@ export const api = {
   analyze: (incident_description) =>
     request('POST', '/analyze', { incident_description }),
 
+  getAnalyses: (skip = 0, limit = 20) =>
+    request('GET', `/analyses?skip=${skip}&limit=${limit}`),
+
   getAnalytics: () =>
     request('GET', '/analytics'),
 

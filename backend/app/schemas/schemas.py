@@ -78,6 +78,7 @@ class AnalyzeResponse(BaseModel):
     resolution: str
     evidence: list[str]
     similar_incidents: list[SimilarIncident]
+    severity: str
     status: str
     created_at: datetime
 
@@ -86,6 +87,11 @@ class AnalyzeResponse(BaseModel):
 
 class AnalysisOut(AnalyzeResponse):
     incident_description: str
+
+
+class AnalysisListOut(BaseModel):
+    total: int
+    items: list[AnalysisOut]
 
 
 # ---------------------------------------------------------------------------
